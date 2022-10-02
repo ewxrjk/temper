@@ -1,5 +1,11 @@
 # temper.py
 
+<span style="color:red">⚠ This is a fork of https://github.com/urwen/temper
+which supports the device I actually have
+and can act as a web server.
+At the time of the fork,
+upstream has not made any commits for several years. ⚠</span>
+
 The USB temperature and temperature/humidity sensors sold by PCsensor are
 widely available from the parent site
 (http://pcsensor.com/usb-temperature-humidity.html), from Amazon, and from
