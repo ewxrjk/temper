@@ -299,3 +299,95 @@ $ ./temper.py --json
 ```
 
 Similar JSON output can be generated with the --list option.
+
+### Web Server
+
+You can run a web server as follows:
+
+```
+$ cat temper.json
+{
+    "hostname": "HOSTNAME",
+    "port": 4343,
+    "keyfile": "/PATH/TO/privkey.pem",
+    "certfile": "/PATH/TO/fullchain.pem"
+}
+$ ./temper.py --server temper.json
+```
+
+Leave out the `keyfile` and `certfile` options if you don't need TLS.
+
+Results are returned in JSON format, much like the `--json` option.
+To query all devices:
+
+```
+$ curl https:///HOSTNAME:4343
+[
+ {
+  "vendorid": 6790,
+  "url": "https://HOSTNAME:4343/6790/57381",
+  "productid": 57381,
+  "manufacturer": "PCsensor",
+  "product": "TEMPerGold",
+  "internal temperature": 20.81
+ }
+]
+```
+
+To enumerate devices without querying (faster):
+
+```
+$ curl https://HOSTNAME:4343/devices
+[
+ {
+  "vendorid": 6790,
+  "url": "https://HOSTNAME:4343/6790/57381",
+  "productid": 57381,
+  "manufacturer": "PCsensor",
+  "product": "TEMPerGold"
+ }
+]
+```
+
+You can use the `url` parameter to query a single device:
+
+```
+$ curl https://HOSTNAME:4343/6790/57381
+{
+ "vendorid": 6790,
+ "url": "https://HOSTNAME:4343/6790/57381",
+ "productid": 57381,
+ "manufacturer": "PCsensor",
+ "product": "TEMPerGold",
+ "internal temperature": 20.81
+}
+```
+
+#### `systemd` Service
+
+You can install it as a service, with configuration in `/etc/temper.json`
+if you use the example `temper.service`:
+
+```
+install -m 755 temper.py /usr/local/bin/temper
+install -m 644 temper.service /etc/systemd/system/temper.service
+systemctl enable --now temper
+```
+
+#### `collectd` Configuration
+
+
+```
+LoadPlugin curl_json
+
+# ...
+
+<Plugin curl_json>
+  <URL "https://HOSTNAME:4343/6790/57381">
+    Instance "temper"
+    <Key "internal temperature">
+      Type "temperature"
+    </Key>
+  </URL>
+</Plugin>
+```

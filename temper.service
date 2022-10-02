@@ -1,0 +1,9 @@
+[Unit]
+Description=Temperature monitor
+After=network.target local-fs.target
+
+[Service]
+ExecStart=/usr/local/bin/temper --server /etc/temper.json
+
+[Install]
+WantedBy=multi-user.target

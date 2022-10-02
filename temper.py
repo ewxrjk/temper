@@ -387,6 +387,85 @@ class Temper(object):
         s += ' ' + self._add_humidity('external humidity', info)
       print(s)
 
+  def webserver(self, server_config_path):
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    with open(server_config_path) as f:
+      server_config=json.load(f)
+
+    if 'certfile' in server_config:
+      protocol = 'https'
+      default_port = 443
+    else:
+      protocol = 'http'
+      default_port = 80
+
+    if 'port' not in server_config:
+      server_config['port'] = default_port
+
+    path_pattern = re.compile('^/([0-9]+)/([0-9]+)$')
+
+    class RequestHandler(BaseHTTPRequestHandler):
+      protocol_version = 'HTTP/1.1'
+
+      def do_GET(rqh):
+        results = None
+        code = 200
+        if rqh.path == "/devices":
+          results = rqh.get_devices()
+        if results is None:
+          match = path_pattern.match(rqh.path)
+          if match:
+            vendorid = int(match.group(1))
+            productid = int(match.group(2))
+            for _, info in self.usb_devices.items():
+              if not self._is_known_id(info['vendorid'], info['productid']):
+                continue
+              if vendorid == info['vendorid'] and productid == info['productid']:
+                usbread = USBRead(info['devices'][-1], False)
+                results = rqh.filter({ **info, **usbread.read()})
+                break
+              if results is None:
+                code = 404
+                results = { 'error': 'no such device' }
+          if results is None:
+            # By default just return everything
+            results = [rqh.filter(data) for data in self.read(False)]
+
+        body = bytes(json.dumps(results, indent=1), 'UTF-8')
+        rqh.send_response(code)
+        rqh.send_header("Content-Type", "application/json")
+        rqh.send_header("Content-Length", "{}".format(len(body)))
+        rqh.end_headers()
+        rqh.wfile.write(body)
+
+      def get_devices(rqh):
+          results = []
+          for _, info in self.usb_devices.items():
+            # Skip irrelevant devices
+            if not self._is_known_id(info['vendorid'], info['productid']):
+              continue
+            # Return device identification information but skip bus information
+            results.append(rqh.filter(info))
+          return results
+
+      def filter(rqh, info):
+        filtered = {}
+        for k in ['vendorid', 'productid', 'manufacturer', 'product', 'internal temperature', 'internal humidity', 'external temperature', 'external humidity']:
+          if k in info:
+            filtered[k] = info[k]
+          # Provide a stable URL for this device
+          filtered['url'] = f'{protocol}://{server_config["hostname"]}:{server_config["port"]}/{info["vendorid"]}/{info["productid"]}'
+        return filtered
+
+    server = HTTPServer((server_config['hostname'], server_config['port']), RequestHandler)
+    if 'certfile' in server_config:
+      import ssl
+      context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+      context.load_cert_chain(certfile=server_config['certfile'], keyfile=server_config['keyfile'])
+      server.socket = context.wrap_socket(server.socket, server_side=True)
+    server.serve_forever()
+
   def main(self):
     '''An example 'main' entry point that can be used to make temper.py a
     standalone program.
@@ -400,10 +479,14 @@ class Temper(object):
     parser.add_argument('--force', type=str,
                         help='Force the use of the hex id; ignore other ids',
                         metavar=('VENDOR_ID:PRODUCT_ID'))
+    parser.add_argument('--server', type=str, help='HTTP server configuration', metavar='PATH')
     parser.add_argument('--verbose', action='store_true',
                         help='Output binary data from thermometer')
     args = parser.parse_args()
     self.verbose = args.verbose
+
+    if args.server:
+      self.webserver(args.server)
 
     if args.list:
       self.list(args.json)
