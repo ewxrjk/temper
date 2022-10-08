@@ -1,6 +1,6 @@
 [Unit]
 Description=Temperature monitor
-After=network.target local-fs.target
+After=network-online.target local-fs.target
 
 [Service]
 ExecStart=/usr/local/bin/temper --server /etc/temper.json
