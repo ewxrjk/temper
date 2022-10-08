@@ -388,7 +388,7 @@ class Temper(object):
       print(s)
 
   def webserver(self, server_config_path):
-    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
     with open(server_config_path) as f:
       server_config=json.load(f)
@@ -439,6 +439,12 @@ class Temper(object):
         rqh.end_headers()
         rqh.wfile.write(body)
 
+      def do_HEAD(rqh):
+        # Everything is JSON, so this is easy
+        rqh.send_response(200)
+        rqh.send_header("Content-Type", "application/json")
+        rqh.end_headers()
+
       def get_devices(rqh):
           results = []
           for _, info in self.usb_devices.items():
@@ -458,7 +464,7 @@ class Temper(object):
           filtered['url'] = f'{protocol}://{server_config["hostname"]}:{server_config["port"]}/{info["vendorid"]}/{info["productid"]}'
         return filtered
 
-    server = HTTPServer((server_config['hostname'], server_config['port']), RequestHandler)
+    server = ThreadingHTTPServer((server_config['hostname'], server_config['port']), RequestHandler)
     if 'certfile' in server_config:
       import ssl
       context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
