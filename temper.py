@@ -275,11 +275,15 @@ class Temper(object):
   SYSPATH = '/sys/bus/usb/devices'
 
   def __init__(self, verbose=False):
-    usblist = USBList()
-    self.usb_devices = usblist.get_usb_devices()
     self.forced_vendor_id = None
     self.forced_product_id = None
     self.verbose = verbose
+    self.reset()
+
+  def reset(self):
+    usblist = USBList()
+    self.usb_devices = usblist.get_usb_devices()
+    self.last_reset = os.times().elapsed
 
   def _is_known_id(self, vendorid, productid):
     '''Returns True if the vendorid and product id are valid.
@@ -387,8 +391,16 @@ class Temper(object):
         s += ' ' + self._add_humidity('external humidity', info)
       print(s)
 
+  def maybe_reset(self):
+    # The web server will reset its device list once a minute,
+    # or when an error occurs.
+    if os.times().elapsed - self.last_reset > 60:
+      self.reset()
+
   def webserver(self, server_config_path):
     from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+    from threading import Lock
+    from traceback import print_exc
 
     with open(server_config_path) as f:
       server_config=json.load(f)
@@ -404,34 +416,15 @@ class Temper(object):
       server_config['port'] = default_port
 
     path_pattern = re.compile('^/([0-9]+)/([0-9]+)$')
+    self.lock = Lock()
+    self.last_reset = os.times().elapsed
 
     class RequestHandler(BaseHTTPRequestHandler):
       protocol_version = 'HTTP/1.1'
 
       def do_GET(rqh):
-        results = None
-        code = 200
-        if rqh.path == "/devices":
-          results = rqh.get_devices()
-        if results is None:
-          match = path_pattern.match(rqh.path)
-          if match:
-            vendorid = int(match.group(1))
-            productid = int(match.group(2))
-            for _, info in self.usb_devices.items():
-              if not self._is_known_id(info['vendorid'], info['productid']):
-                continue
-              if vendorid == info['vendorid'] and productid == info['productid']:
-                usbread = USBRead(info['devices'][-1], False)
-                results = rqh.filter({ **info, **usbread.read()})
-                break
-              if results is None:
-                code = 404
-                results = { 'error': 'no such device' }
-          if results is None:
-            # By default just return everything
-            results = [rqh.filter(data) for data in self.read(False)]
-
+        # handle a GET request
+        code, results = rqh.get_path('GET')
         body = bytes(json.dumps(results, indent=1), 'UTF-8')
         rqh.send_response(code)
         rqh.send_header("Content-Type", "application/json")
@@ -440,20 +433,68 @@ class Temper(object):
         rqh.wfile.write(body)
 
       def do_HEAD(rqh):
-        # Everything is JSON, so this is easy
-        rqh.send_response(200)
+        # hadnle a HEAD request
+        code, results = rqh.get_path('HEAD')
+        rqh.send_response(code)
         rqh.send_header("Content-Type", "application/json")
         rqh.end_headers()
 
-      def get_devices(rqh):
-          results = []
+      def get_path(rqh, mode):
+        # handle any request, returning STATUS,BODY
+        with self.lock:
+          match = path_pattern.match(rqh.path)
+          if match:
+            return rqh.get_device(mode, match)
+          if rqh.path == "/devices":
+            return rqh.get_devices(mode)
+          if rqh.path == "/":
+            return rqh.get_all(mode)
+        return 404,{'error': 'unrecognized path'}
+
+      def get_devices(rqh, mode):
+        # Handle a /devices request
+        self.maybe_reset()
+        results = []
+        for _, info in self.usb_devices.items():
+          # Skip irrelevant devices
+          if not self._is_known_id(info['vendorid'], info['productid']):
+            continue
+          # Return device identification information but skip bus information
+          results.append(rqh.filter(info))
+        return 200, results
+
+      def get_all(rqh, mode):
+        # Handle a / request
+        self.maybe_reset()
+        if mode == 'HEAD': # don't query devices just for HEAD
+          return 200, []
+        results = None
+        try:
+          results = [rqh.filter(data) for data in self.read(False)]
+        except FileNotFoundError:
+          print_exc()
+        if results is None:
+          self.force_reset()
+          results = [rqh.filter(data) for data in self.read(False)]
+        return 200, results
+
+      def get_device(rqh, mode, match):
+        # Handle a request to a single device
+        vendorid = int(match.group(1))
+        productid = int(match.group(2))
+        try:
           for _, info in self.usb_devices.items():
-            # Skip irrelevant devices
             if not self._is_known_id(info['vendorid'], info['productid']):
               continue
-            # Return device identification information but skip bus information
-            results.append(rqh.filter(info))
-          return results
+            if vendorid == info['vendorid'] and productid == info['productid']:
+              if mode == 'HEAD': # don't query device just for HEAD
+                return 200, {}
+              usbread = USBRead(info['devices'][-1], False)
+              return 200, rqh.filter({ **info, **usbread.read()})
+        except FileNotFoundError:
+          print_exc()
+        self.maybe_reset()
+        return 404, { 'error': 'no such device' }
 
       def filter(rqh, info):
         filtered = {}
