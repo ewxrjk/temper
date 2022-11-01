@@ -505,7 +505,18 @@ class Temper(object):
           filtered['url'] = f'{protocol}://{server_config["hostname"]}:{server_config["port"]}/{info["vendorid"]}/{info["productid"]}'
         return filtered
 
-    server = ThreadingHTTPServer((server_config['hostname'], server_config['port']), RequestHandler)
+    def makeserver(server_address, RequestHandlerClass):
+      import socket
+      while True:
+        try:
+          return ThreadingHTTPServer(server_address, RequestHandlerClass)
+        except socket.gaierror as e:
+          if e.errno != socket.EAI_AGAIN:
+            raise
+          print(f"creating web server: {e}")
+        time.sleep(1)
+
+    server = makeserver((server_config['hostname'], server_config['port']), RequestHandler)
     if 'certfile' in server_config:
       import ssl
       context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
