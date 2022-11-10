@@ -401,6 +401,7 @@ class Temper(object):
     from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
     from threading import Lock
     from traceback import print_exc
+    import time
 
     with open(server_config_path) as f:
       server_config=json.load(f)
