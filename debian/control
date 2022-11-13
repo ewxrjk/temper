@@ -1,0 +1,13 @@
+Source: temper
+Maintainer: Richard Kettlewell <rjk@greenend.org.uk>
+Priority: optional
+Standards-Version: 3.8.1.0
+Build-Depends: python3,dh-exec
+
+Package: temper
+Architecture: all
+Section: utils
+Depends: python3 (>=3.9),python3-serial,${misc:Depends}
+Description: Temperature monitor
+ Tool and web service for using PCsensor USB temperature/humidity
+ monitoring devices.

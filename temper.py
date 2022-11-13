@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # temper.py -*-python-*-
 # Copyright 2018 by Pham Urwen (urwen@mail.ru)
+# Portions copyright Richard Kettlewell
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
