@@ -375,13 +375,11 @@ You can install it as a service, with configuration in `/etc/temper.json`
 if you use the example `temper.service`:
 
 ```
-install -m 755 temper.py /usr/local/bin/temper
-install -m 644 temper.service /etc/systemd/system/temper.service
-systemctl enable --now temper
+sudo make install
+sudo systemctl enable --now temper
 ```
 
 #### `collectd` Configuration
-
 
 ```
 LoadPlugin curl_json

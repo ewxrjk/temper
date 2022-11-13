@@ -5,5 +5,12 @@ After=network-online.target local-fs.target
 [Service]
 ExecStart=/usr/local/bin/temper --server /etc/temper.json
 
+# Despite our After= settings, we often get started before the
+# system is ready to solve hostnames. That seems like a bug
+# in something but not one we're going to solve here. The
+# workaround is to restart on error.
+Restart=on-failure
+RestartSec=10sec
+
 [Install]
 WantedBy=multi-user.target
