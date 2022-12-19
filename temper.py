@@ -408,6 +408,8 @@ class Temper(object):
         from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
         from threading import Lock
         from traceback import print_exc
+        import stat
+        import socket
 
         with open(server_config_path) as f:
             server_config = json.load(f)
@@ -421,6 +423,14 @@ class Temper(object):
 
         if 'port' not in server_config:
             server_config['port'] = default_port
+
+        # Look for an inherited socket
+        inherited_socket = None
+        fd = 3
+        if stat.S_ISSOCK(os.fstat(fd).st_mode):
+            inherited_socket = socket.fromfd(
+                fd, ThreadingHTTPServer.socket_type, ThreadingHTTPServer.address_family)
+            address = inherited_socket.getsockname()
 
         path_pattern = re.compile('^/([0-9]+)/([0-9]+)$')
         self.lock = Lock()
@@ -516,7 +526,21 @@ class Temper(object):
                 if logging:
                     return super().log_request(code, size)
 
-        server = ThreadingHTTPServer(
+        class InheritingHTTPServer(ThreadingHTTPServer):
+            def server_bind(self):
+                # If stdin is a socket then we'll use that as the listening socket
+                if inherited_socket is not None:
+                    self.socket = inherited_socket
+                    self.server_address = self.socket.getsockname()
+                else:
+                    return super().server_bind()
+
+            def server_activate(self):
+                # If we're inheriting the socket then listen() was already called
+                if inherited_socket is None:
+                    return super().server_activate()
+
+        server = InheritingHTTPServer(
             (server_config['hostname'], server_config['port']), RequestHandler)
         if 'certfile' in server_config:
             import ssl

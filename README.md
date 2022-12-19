@@ -306,7 +306,7 @@ $ ./temper.py --json
 
 Similar JSON output can be generated with the --list option.
 
-### Web Server
+## Web Server
 
 You can run a web server as follows:
 
@@ -371,10 +371,9 @@ $ curl https://HOSTNAME:4343/6790/57381
 }
 ```
 
-#### `systemd` Service
+### `systemd` Service
 
-You can install it as a service, with configuration in `/etc/temper.json`.
-
+You can install the web server as a service.
 
 To install:
 
@@ -383,9 +382,9 @@ sudo make install
 sudo systemctl enable --now temper
 ```
 
-#### Web server as non-root
+### Avoiding root user
 
-In `/etc/udev/rules.d/50-temper-hidraw.rules`:
+In `/etc/udev/rules.d/50-temper-hidraw.rules`, add a rule to give the `/dev/hidrawN` devices world read permission:
 
 ```
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="e025", MODE="0666"
@@ -395,16 +394,36 @@ Note that this makes the temperature monitor readable by any user.
 
 Change the the vendor and product ID to match your device.
 
-Override the service settings in `/etc/systemd/system/temper.service.d/override.conf`:
+Create `/etc/systemd/system/temper.socket` as shown below.
+`systemd` will create the listening socket automatically.
 
 ```
+[Unit]
+Description=Temper listening socket
+
+[Socket]
+ListenStream=PORT
+Accept=false
+
+[Install]
+WantedBy=sockets.target
+```
+
+Override the service settings in `/etc/systemd/system/temper.service.d/override.conf`.
+This will run the web server as a throwaway non-root user
+and inject TLS credentials via a private temporary filesystem.
+
+```
+[Unit]
+Requires=temper.socket
+
 [Service]
 DynamicUser=true
 LoadCredential=key.pem:/etc/ssl/private/sfere.anjou.terraraq.uk.pem
 LoadCredential=cert.pem:/etc/ssl/certs/sfere.anjou.terraraq.uk.pem
 ```
 
-A suitable `/etc/temper.json` looks like:
+`/etc/temper.json` must be modified to pick up the injected credentials:
 
 ```
 {
@@ -415,7 +434,12 @@ A suitable `/etc/temper.json` looks like:
 }
 ```
 
-#### `collectd` Configuration
+Note that `hostname` and `port` are (currently) still required.
+
+With all of the above in place,
+`temper` will notice that it has inherited a socket and use that instead of binding one.
+
+### `collectd` Configuration
 
 ```
 LoadPlugin curl_json
