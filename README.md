@@ -410,7 +410,8 @@ WantedBy=sockets.target
 ```
 
 Override the service settings in `/etc/systemd/system/temper.service.d/override.conf`.
-This will run the web server as a throwaway non-root user
+This will run the web server as a throwaway non-root user;
+suppress access to the network other than via the inherited socket;
 and inject TLS credentials via a private temporary filesystem.
 
 ```
@@ -419,6 +420,7 @@ Requires=temper.socket
 
 [Service]
 DynamicUser=true
+PrivateNetwork=true
 LoadCredential=key.pem:/etc/ssl/private/sfere.anjou.terraraq.uk.pem
 LoadCredential=cert.pem:/etc/ssl/certs/sfere.anjou.terraraq.uk.pem
 ```
