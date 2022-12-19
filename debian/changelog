@@ -1,3 +1,9 @@
+temper (2022.12.19) unstable; urgency=medium
+
+  * Request logging disabled by default
+
+ -- Richard Kettlewell <rjk@terraraq.uk>  Mon, 19 Dec 2022 13:28:35 +0000
+
 temper (2022.11.13) stable; urgency=medium
 
   * Debian package

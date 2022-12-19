@@ -323,6 +323,8 @@ $ ./temper.py --server temper.json
 
 Leave out the `keyfile` and `certfile` options if you don't need TLS.
 
+Request logging is enabled by default; use the `--logging` option to enable it.
+
 Results are returned in JSON format, much like the `--json` option.
 To query all devices:
 
