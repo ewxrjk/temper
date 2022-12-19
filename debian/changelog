@@ -1,3 +1,9 @@
+temper (2022.12.19.2) stable; urgency=medium
+
+  * Socket actication support
+
+ -- Richard Kettlewell <rjk@terraraq.uk>  Mon, 19 Dec 2022 17:29:03 +0000
+
 temper (2022.12.19.1) stable; urgency=medium
 
   * Web server can be run as mortal
