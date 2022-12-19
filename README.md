@@ -373,12 +373,46 @@ $ curl https://HOSTNAME:4343/6790/57381
 
 #### `systemd` Service
 
-You can install it as a service, with configuration in `/etc/temper.json`
-if you use the example `temper.service`:
+You can install it as a service, with configuration in `/etc/temper.json`.
+
+
+To install:
 
 ```
 sudo make install
 sudo systemctl enable --now temper
+```
+
+#### Web server as non-root
+
+In `/etc/udev/rules.d/50-temper-hidraw.rules`:
+
+```
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="e025", MODE="0666"
+```
+
+Note that this makes the temperature monitor readable by any user.
+
+Change the the vendor and product ID to match your device.
+
+Override the service settings in `/etc/systemd/system/temper.service.d/override.conf`:
+
+```
+[Service]
+DynamicUser=true
+LoadCredential=key.pem:/etc/ssl/private/sfere.anjou.terraraq.uk.pem
+LoadCredential=cert.pem:/etc/ssl/certs/sfere.anjou.terraraq.uk.pem
+```
+
+A suitable `/etc/temper.json` looks like:
+
+```
+{
+    "hostname": "HOSTNAME",
+    "port": PORT,
+    "keyfile": "${CREDENTIALS_DIRECTORY}/key.pem",
+    "certfile": "${CREDENTIALS_DIRECTORY}/cert.pem"
+}
 ```
 
 #### `collectd` Configuration

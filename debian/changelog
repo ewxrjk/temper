@@ -1,3 +1,9 @@
+temper (2022.12.19.1) stable; urgency=medium
+
+  * Web server can be run as mortal
+
+ -- Richard Kettlewell <rjk@terraraq.uk>  Mon, 19 Dec 2022 15:33:12 +0000
+
 temper (2022.12.19) unstable; urgency=medium
 
   * Request logging disabled by default

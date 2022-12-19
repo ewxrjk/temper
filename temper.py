@@ -521,8 +521,10 @@ class Temper(object):
         if 'certfile' in server_config:
             import ssl
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            keyfile = os.path.expandvars(server_config['keyfile'])
+            certfile = os.path.expandvars(server_config['certfile'])
             context.load_cert_chain(
-                certfile=server_config['certfile'], keyfile=server_config['keyfile'])
+                certfile=certfile, keyfile=keyfile)
             server.socket = context.wrap_socket(
                 server.socket, server_side=True)
         server.serve_forever()
