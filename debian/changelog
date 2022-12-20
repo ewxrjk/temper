@@ -1,3 +1,9 @@
+temper (2022.12.20) unstable; urgency=medium
+
+  * Service hardening
+
+ -- Richard Kettlewell <rjk@terraraq.uk>  Tue, 20 Dec 2022 20:29:59 +0000
+
 temper (2022.12.19.2) stable; urgency=medium
 
   * Socket actication support
